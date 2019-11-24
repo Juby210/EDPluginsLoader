@@ -5,6 +5,34 @@ const { join } = require('path')
 
 // https://raw.githubusercontent.com/joe27g/EnhancedDiscord/master/LICENSE
 
+const c = {
+    log: function(msg, plugin) {
+        if (plugin && plugin.name)
+            console.log(`%c[EnhancedDiscord] %c[${plugin.name}]`, 'color: red;', `color: ${plugin.color}`, msg);
+        else console.log('%c[EnhancedDiscord]', 'color: red;', msg);
+    },
+    info: function(msg, plugin) {
+        if (plugin && plugin.name)
+            console.info(`%c[EnhancedDiscord] %c[${plugin.name}]`, 'color: red;', `color: ${plugin.color}`, msg);
+        else console.info('%c[EnhancedDiscord]', 'color: red;', msg);
+    },
+    warn: function(msg, plugin) {
+        if (plugin && plugin.name)
+            console.warn(`%c[EnhancedDiscord] %c[${plugin.name}]`, 'color: red;', `color: ${plugin.color}`, msg);
+        else console.warn('%c[EnhancedDiscord]', 'color: red;', msg);
+    },
+    error: function(msg, plugin) {
+        if (plugin && plugin.name)
+            console.error(`%c[EnhancedDiscord] %c[${plugin.name}]`, 'color: red;', `color: ${plugin.color}`, msg);
+        else console.error('%c[EnhancedDiscord]', 'color: red;', msg);
+    },
+    sleep: function(ms) {
+        return new Promise(resolve => {
+            setTimeout(resolve, ms);
+        });
+    }
+}
+
 class EDPluginsLoader {
 	getName() { return "ED Plugins Loader" }
 	getDescription() { return "Load ED plugins in BetterDiscord" }
@@ -17,34 +45,6 @@ class EDPluginsLoader {
         if(!existsSync(pluginjs)) {
             openSync(pluginjs, 'w')
             writeFileSync(pluginjs, 'module.exports = ' + String(Plugin))
-        }
-
-        const c = {
-            log: function(msg, plugin) {
-                if (plugin && plugin.name)
-                    console.log(`%c[EnhancedDiscord] %c[${plugin.name}]`, 'color: red;', `color: ${plugin.color}`, msg);
-                else console.log('%c[EnhancedDiscord]', 'color: red;', msg);
-            },
-            info: function(msg, plugin) {
-                if (plugin && plugin.name)
-                    console.info(`%c[EnhancedDiscord] %c[${plugin.name}]`, 'color: red;', `color: ${plugin.color}`, msg);
-                else console.info('%c[EnhancedDiscord]', 'color: red;', msg);
-            },
-            warn: function(msg, plugin) {
-                if (plugin && plugin.name)
-                    console.warn(`%c[EnhancedDiscord] %c[${plugin.name}]`, 'color: red;', `color: ${plugin.color}`, msg);
-                else console.warn('%c[EnhancedDiscord]', 'color: red;', msg);
-            },
-            error: function(msg, plugin) {
-                if (plugin && plugin.name)
-                    console.error(`%c[EnhancedDiscord] %c[${plugin.name}]`, 'color: red;', `color: ${plugin.color}`, msg);
-                else console.error('%c[EnhancedDiscord]', 'color: red;', msg);
-            },
-            sleep: function(ms) {
-                return new Promise(resolve => {
-                    setTimeout(resolve, ms);
-                });
-            }
         }
 
         window.ED = { plugins: {}, version: '2.6.2' }
@@ -161,12 +161,12 @@ class EDPluginsLoader {
 
         c.log(`Loading plugins...`)
         for (const id in plugins) {
-            if (window.ED.config[id] && window.ED.config[id].enabled == false) continue
+            if (window.ED.config[id] && window.ED.config[id].enabled === false) continue
             if (!plugins[id].preload) continue
             loadPlugin(plugins[id])
         }
         for (const id in plugins) {
-            if (window.ED.config[id] && window.ED.config[id].enabled == false) continue
+            if (window.ED.config[id] && window.ED.config[id].enabled === false) continue
             if (plugins[id].preload) continue
             loadPlugin(plugins[id])
         }
