@@ -197,7 +197,11 @@ class EDPluginsLoader {
     stop() {
         for (const id in window.ED.plugins) {
             if(window.ED.config[id] && window.ED.config[id].enabled == false) continue
-            window.ED.plugins[id].unload()
+            try {
+                window.ED.plugins[id].unload()
+            } catch(e) {
+                c.error(e, window.ED.plugins[id])
+            }
         }
 
         delete window.ED
