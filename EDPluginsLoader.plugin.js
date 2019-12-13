@@ -36,7 +36,7 @@ const c = {
 class EDPluginsLoader {
 	getName() { return "ED Plugins Loader" }
 	getDescription() { return "Load ED plugins in BetterDiscord" }
-	getVersion() { return "0.0.1" }
+	getVersion() { return "0.0.2" }
 	getAuthor() { return "Juby210" }
     getRawUrl() { return "https://raw.githubusercontent.com/juby210-PL/EDPluginsLoader/master/EDPluginsLoader.plugin.js" }
 
