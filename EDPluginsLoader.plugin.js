@@ -154,9 +154,9 @@ class EDPluginsLoader {
 
         if (window.ED.config.antiTrack !== false) {
             window.EDApi.monkeyPatch(window.EDApi.findModule('track'), 'track', () => {});
-            const errReports = window.EDApi.findModule('collectWindowErrors');
+            /* const errReports = window.EDApi.findModule('collectWindowErrors');
             errReports.collectWindowErrors = false;
-            window.EDApi.monkeyPatch(errReports, 'report', () => {});
+            window.EDApi.monkeyPatch(errReports, 'report', () => {}); */
         }
 
         c.log(`Loading plugins...`)
