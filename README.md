@@ -1,5 +1,6 @@
 # EDPluginsLoader
 Load [EnhancedDiscord](https://github.com/joe27g/EnhancedDiscord) plugins in BetterDiscord 
 
-### How to install
-Download `EDPluginsLoader.plugin.js` and `ed_settings.js` to bd plugins directory
+Tested on:
+- [BBD](https://github.com/rauenzi/BetterDiscordApp)
+- [Powercord](https://github.com/powercord-org/powercord) via [bdCompat](https://github.com/Juby210/bdCompat)

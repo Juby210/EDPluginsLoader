@@ -36,18 +36,36 @@ const c = {
 class EDPluginsLoader {
 	getName() { return "ED Plugins Loader" }
 	getDescription() { return "Load ED plugins in BetterDiscord" }
-	getVersion() { return "0.0.2" }
+	getVersion() { return "0.0.3" }
 	getAuthor() { return "Juby210" }
     getRawUrl() { return "https://raw.githubusercontent.com/juby210-PL/EDPluginsLoader/master/EDPluginsLoader.plugin.js" }
 
-    start() {
+    async start() {
         const pluginjs = join(__dirname, '..', 'plugin.js')
         if(!existsSync(pluginjs)) {
             openSync(pluginjs, 'w')
-            writeFileSync(pluginjs, 'module.exports = ' + String(Plugin))
+            writeFileSync(pluginjs, `//${this.getVersion()}\nmodule.exports = ${String(Plugin)}`)
         }
 
-        window.ED = { plugins: {}, version: '2.6.2' }
+        const settingsCommit = 'b988710f79252507245b0fbf0188cd8379ac6a9e'
+        const settingsjs = join(__dirname, 'ed_settings.js')
+        if(!existsSync(settingsjs) ||
+        (existsSync(settingsjs) &&
+        readFileSync(settingsjs).toString().split('\n')[0] != `//${settingsCommit}`)) {
+            c.log('Updating ed_settings')
+            let res = await fetch(`https://raw.githubusercontent.com/joe27g/EnhancedDiscord/${settingsCommit}/plugins/ed_settings.js`)
+            if (res.status == 200) {
+                let s = `//${settingsCommit}\n` + (await res.text()).replace('const BD = ', '// const BD = ')
+                if (window.powercord) { // fixes for powercord
+                    s = s.replace('devIndex + 2', 'devIndex + 6')
+                        .replace('findModule("Sizes")', 'EDApi.findModuleByDisplayName("DropdownButton")')
+                }
+                writeFileSync(settingsjs, s)
+            }
+        }
+
+
+        window.ED = { plugins: {}, version: '2.7.0' }
         window.ED.localStorage = window.localStorage
         process.env.injDir = bdConfig.dataPath
 
@@ -76,12 +94,12 @@ class EDPluginsLoader {
             const _cancel = BdApi.monkeyPatch(what, methodName, options), _displayName = what[methodName].displayName
             const cancel = () => {
                 _cancel()
-                delete what[methodName].__monkeyPatched
                 what[methodName].displayName = _displayName
+                delete what[methodName].unpatch
             }
-            what[methodName].__monkeyPatched = true
             what[methodName].displayName = "patched " + (what[methodName].displayName || methodName)
             what[methodName].unpatch = cancel
+            return cancel
         }
         window.EDApi.formatString = (string, values) => {
             for (const val in values) {
@@ -148,17 +166,6 @@ class EDPluginsLoader {
         // TODO: window.findRawModule = window.EDApi.findRawModule
         window.monkeyPatch = window.EDApi.monkeyPatch
 
-        if (window.ED.config.silentTyping) {
-            window.EDApi.monkeyPatch(window.EDApi.findModule('startTyping'), 'startTyping', () => {});
-        }
-
-        if (window.ED.config.antiTrack !== false) {
-            window.EDApi.monkeyPatch(window.EDApi.findModule('track'), 'track', () => {});
-            /* const errReports = window.EDApi.findModule('collectWindowErrors');
-            errReports.collectWindowErrors = false;
-            window.EDApi.monkeyPatch(errReports, 'report', () => {}); */
-        }
-
         c.log(`Loading plugins...`)
         for (const id in plugins) {
             if (window.ED.config[id] && window.ED.config[id].enabled === false) continue
@@ -193,6 +200,14 @@ class EDPluginsLoader {
             console.log("%cUnless you understand exactly what you're doing, keep this window open to browse our bad code.", "font-size: 16px;");
             console.log("%cIf you don't understand exactly what you're doing, you should come work with us: https://discordapp.com/jobs", "font-size: 16px;");
         });
+
+        if (window.ZeresPluginLibrary) {
+			ZeresPluginLibrary.PluginUpdater.checkForUpdate(this.getName(), this.getVersion(), this.getRawUrl())
+		} else if (window.BDFDB) {
+            if(!window.PluginUpdates) window.PluginUpdates = { plugins: {} }
+            window.PluginUpdates.plugins[this.getRawUrl()] = { name: this.getName(), raw: this.getRawUrl(), version: this.getVersion() }
+            BDFDB.PluginUtils.checkUpdate(this.getName(), this.getRawUrl())
+        }
     }
     stop() {
         for (const id in window.ED.plugins) {
