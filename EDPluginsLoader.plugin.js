@@ -36,7 +36,7 @@ const c = {
 class EDPluginsLoader {
 	getName() { return "ED Plugins Loader" }
 	getDescription() { return "Load ED plugins in BetterDiscord" }
-	getVersion() { return "0.0.3" }
+	getVersion() { return "0.0.4" }
 	getAuthor() { return "Juby210" }
     getRawUrl() { return "https://raw.githubusercontent.com/juby210-PL/EDPluginsLoader/master/EDPluginsLoader.plugin.js" }
 
@@ -47,7 +47,7 @@ class EDPluginsLoader {
             writeFileSync(pluginjs, `//${this.getVersion()}\nmodule.exports = ${String(Plugin)}`)
         }
 
-        const settingsCommit = 'b988710f79252507245b0fbf0188cd8379ac6a9e'
+        const settingsCommit = '8e828ea819e13acbc1965b1b1129cec7f240388e'
         const settingsjs = join(__dirname, 'ed_settings.js')
         if(!existsSync(settingsjs) ||
         (existsSync(settingsjs) &&
@@ -55,15 +55,19 @@ class EDPluginsLoader {
             c.log('Updating ed_settings')
             let res = await fetch(`https://raw.githubusercontent.com/joe27g/EnhancedDiscord/${settingsCommit}/plugins/ed_settings.js`)
             if (res.status == 200) {
-                let s = `//${settingsCommit}\n` + (await res.text()).replace('const BD = ', '// const BD = ')
+                let s = `//${settingsCommit}\n// This file is auto updated by EDPluginsLoader, don\'t edit this manually\n` + (await res.text())
+                    .replace('const BD = ', '// const BD = ')
+                    .replace(/this\.props\.plugin\.settings\.enabled = /g, 'let _x=this.props.plugin.settings;_x.enabled=')
+                    .replace(/ = this\.props\.plugin\.settings/g, '=_x')
+
                 if (window.powercord) { // fixes for powercord
                     s = s.replace('devIndex + 2', 'devIndex + 6')
                         .replace('findModule("Sizes")', 'EDApi.findModuleByDisplayName("DropdownButton")')
                 }
+
                 writeFileSync(settingsjs, s)
             }
         }
-
 
         window.ED = { plugins: {}, version: '2.7.0' }
         window.ED.localStorage = window.localStorage
