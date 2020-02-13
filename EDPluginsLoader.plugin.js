@@ -2,6 +2,9 @@
 
 const { existsSync, openSync, writeFileSync, readdirSync, readFileSync } = require('fs')
 const { join } = require('path')
+const { Module } = require('module')
+
+const settingsCommit = 'd8c36c3be5b114c7695f5a392d741f2b9e660e1b'
 
 // https://raw.githubusercontent.com/joe27g/EnhancedDiscord/master/LICENSE
 
@@ -34,24 +37,23 @@ const c = {
 }
 
 class EDPluginsLoader {
-	getName() { return "ED Plugins Loader" }
-	getDescription() { return "Load ED plugins in BetterDiscord" }
-	getVersion() { return "0.0.4" }
-	getAuthor() { return "Juby210" }
-    getRawUrl() { return "https://raw.githubusercontent.com/juby210-PL/EDPluginsLoader/master/EDPluginsLoader.plugin.js" }
+    getName() { return 'ED Plugins Loader' }
+    getDescription() { return 'Load ED plugins in BetterDiscord' }
+    getVersion() { return '0.0.5' }
+    getAuthor() { return 'Juby210' }
+    getRawUrl() { return 'https://raw.githubusercontent.com/Juby210/EDPluginsLoader/master/EDPluginsLoader.plugin.js' }
 
     async start() {
         const pluginjs = join(__dirname, '..', 'plugin.js')
-        if(!existsSync(pluginjs)) {
+        if(!(existsSync(pluginjs) &&
+        readFileSync(pluginjs).toString().split('\n')[0] == `//${this.getVersion()}`)) {
             openSync(pluginjs, 'w')
             writeFileSync(pluginjs, `//${this.getVersion()}\nmodule.exports = ${String(Plugin)}`)
         }
 
-        const settingsCommit = '8e828ea819e13acbc1965b1b1129cec7f240388e'
         const settingsjs = join(__dirname, 'ed_settings.js')
-        if(!existsSync(settingsjs) ||
-        (existsSync(settingsjs) &&
-        readFileSync(settingsjs).toString().split('\n')[0] != `//${settingsCommit}`)) {
+        if(!(existsSync(settingsjs) &&
+        readFileSync(settingsjs).toString().split('\n')[0] == `//${settingsCommit}`)) {
             c.log('Updating ed_settings')
             let res = await fetch(`https://raw.githubusercontent.com/joe27g/EnhancedDiscord/${settingsCommit}/plugins/ed_settings.js`)
             if (res.status == 200) {
@@ -62,14 +64,14 @@ class EDPluginsLoader {
 
                 if (window.powercord) { // fixes for powercord
                     s = s.replace('devIndex + 2', 'devIndex + 6')
-                        .replace('findModule("Sizes")', 'EDApi.findModuleByDisplayName("DropdownButton")')
+                        .replace('.findModule("Sizes")', '.findModuleByDisplayName("DropdownButton")')
                 }
 
                 writeFileSync(settingsjs, s)
             }
         }
 
-        window.ED = { plugins: {}, version: '2.7.0' }
+        window.ED = { plugins: {}, version: '2.7.1' }
         window.ED.localStorage = window.localStorage
         process.env.injDir = bdConfig.dataPath
 
@@ -119,7 +121,11 @@ class EDPluginsLoader {
         window.ED._reloadPlugin = id => {
             const plugin = window.ED.plugins[id]
             if(!plugin) return
-            plugin.unload()
+            try {
+                plugin.unload()
+            } catch(e) {
+                c.error(e, plugin)
+            }
             delete require.cache[require.resolve(`./${id}`)]
             const newPlugin = require(`./${id}`)
             window.ED.plugins[id] = newPlugin
@@ -127,7 +133,7 @@ class EDPluginsLoader {
             newPlugin.load()
         }
 
-        require('module').Module._extensions['.js'] = (module, filename) => {
+        if (!window.powercord) Module._extensions['.js'] = (module, filename) => {
             try {
                 ContentManager.getContentRequire('plugin')(module, filename)
             } catch(e) {
@@ -172,13 +178,16 @@ class EDPluginsLoader {
 
         c.log(`Loading plugins...`)
         for (const id in plugins) {
-            if (window.ED.config[id] && window.ED.config[id].enabled === false) continue
+            if (ED.config[id] && ED.config[id].enabled === false) continue
             if (!plugins[id].preload) continue
             loadPlugin(plugins[id])
         }
         for (const id in plugins) {
-            if (window.ED.config[id] && window.ED.config[id].enabled === false) continue
+            if (ED.config[id] && ED.config[id].enabled === false) continue
             if (plugins[id].preload) continue
+            if (ED.config[id] && ED.config[id].enabled !== true && plugins[id].disabledByDefault) {
+                plugins[id].settings.enabled = false; continue;
+            }
             loadPlugin(plugins[id])
         }
 
@@ -206,8 +215,8 @@ class EDPluginsLoader {
         });
 
         if (window.ZeresPluginLibrary) {
-			ZeresPluginLibrary.PluginUpdater.checkForUpdate(this.getName(), this.getVersion(), this.getRawUrl())
-		} else if (window.BDFDB) {
+            ZeresPluginLibrary.PluginUpdater.checkForUpdate(this.getName(), this.getVersion(), this.getRawUrl())
+        } else if (window.BDFDB) {
             if(!window.PluginUpdates) window.PluginUpdates = { plugins: {} }
             window.PluginUpdates.plugins[this.getRawUrl()] = { name: this.getName(), raw: this.getRawUrl(), version: this.getVersion() }
             BDFDB.PluginUtils.checkUpdate(this.getName(), this.getRawUrl())
@@ -228,10 +237,10 @@ class EDPluginsLoader {
     }
 
     loadData(s) {
-        return BdApi.loadData("EDPLoader", s)
+        return BdApi.loadData('EDPLoader', s)
     }
     saveData(s, v) {
-        return BdApi.saveData("EDPLoader", s, v)
+        return BdApi.saveData('EDPLoader', s, v)
     }
 }
 
@@ -325,12 +334,7 @@ class Plugin {
         if (window.ED.config && window.ED.config[this.id])
             return window.ED.config[this.id];
 
-        const final = {};
-        if (this.config)
-            for (const key in this.config)
-                final[key] = this.config[key].default;
-        return this.settings = final;
-        //return final;
+        return this.defaultSettings || {enabled: !this.disabledByDefault}
     }
     set settings(newSets = {}) {
         //this.log(__dirname, process.env.injDir);
