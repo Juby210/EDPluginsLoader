@@ -1,10 +1,11 @@
 //META{"name":"EDPluginsLoader"}*//
 
-const { existsSync, openSync, writeFileSync, readdirSync, readFileSync } = require('fs')
+const { existsSync, writeFileSync, readdirSync, readFileSync } = require('fs')
 const { join } = require('path')
 const { Module } = require('module')
 
-const settingsCommit = 'd8c36c3be5b114c7695f5a392d741f2b9e660e1b'
+const settingsCommit = '2da7c49264b840ba4bfcb435c722e3a79666f18d'
+const pluginCommit   = settingsCommit
 
 // https://raw.githubusercontent.com/joe27g/EnhancedDiscord/master/LICENSE
 
@@ -39,39 +40,47 @@ const c = {
 class EDPluginsLoader {
     getName() { return 'ED Plugins Loader' }
     getDescription() { return 'Load ED plugins in BetterDiscord' }
-    getVersion() { return '0.0.5' }
+    getVersion() { return '0.0.6' }
     getAuthor() { return 'Juby210' }
     getRawUrl() { return 'https://raw.githubusercontent.com/Juby210/EDPluginsLoader/master/EDPluginsLoader.plugin.js' }
 
     async start() {
         const pluginjs = join(__dirname, '..', 'plugin.js')
-        if(!(existsSync(pluginjs) &&
-        readFileSync(pluginjs).toString().split('\n')[0] == `//${this.getVersion()}`)) {
-            openSync(pluginjs, 'w')
-            writeFileSync(pluginjs, `//${this.getVersion()}\nmodule.exports = ${String(Plugin)}`)
+        if (!existsSync(pluginjs) || this.loadData('plugin_commit') != pluginCommit) {
+            c.log('Updating plugin class')
+            let res = await fetch(`https://raw.githubusercontent.com/joe27g/EnhancedDiscord/${pluginCommit}/plugin.js`)
+            if (res.status != 200) return console.error('[EDPL] Failed to update plugin class!', res)
+            let tab = '        '
+            let s = (await res.text()).replace(`this.unload();\r\n${tab}delete require.cache[require.resolve(\`./plugins/\${this.id}\`)];\r
+${tab}const newPlugin = require(\`./plugins/\${this.id}\`);\r\n${tab}ED.plugins[this.id] = newPlugin;\r\n${tab}newPlugin.id = this.id;\r
+${tab}return newPlugin.load()`, 'ED._reloadPlugin(this.id)')
+
+            writeFileSync(pluginjs, s)
+            this.saveData('plugin_commit', pluginCommit)
         }
 
         const settingsjs = join(__dirname, 'ed_settings.js')
-        if(!(existsSync(settingsjs) &&
-        readFileSync(settingsjs).toString().split('\n')[0] == `//${settingsCommit}`)) {
-            c.log('Updating ed_settings')
+        if(!existsSync(settingsjs) || this.loadData('settings_commit') != settingsCommit) {
+            c.log('Updating ed settings')
             let res = await fetch(`https://raw.githubusercontent.com/joe27g/EnhancedDiscord/${settingsCommit}/plugins/ed_settings.js`)
-            if (res.status == 200) {
-                let s = `//${settingsCommit}\n// This file is auto updated by EDPluginsLoader, don\'t edit this manually\n` + (await res.text())
-                    .replace('const BD = ', '// const BD = ')
-                    .replace(/this\.props\.plugin\.settings\.enabled = /g, 'let _x=this.props.plugin.settings;_x.enabled=')
-                    .replace(/ = this\.props\.plugin\.settings/g, '=_x')
+            if (res.status != 200) return console.error('[EDPL] Failed to update ed settings!', res)
+            let s = `// This file is auto updated by EDPluginsLoader, don\'t edit this manually\n` + (await res.text())
+                .replace('const BD = ', '// const BD = ')
+                .replace('Allows EnhancedDiscord to load BetterDiscord plugins natively. Reload (ctrl+r) for changes to take effect."',
+                    'This option is disabled, because you are using EDPluginsLoader.",disabled:true')
+                .replace(/this\.props\.plugin\.settings\.enabled = /g, 'let _x=this.props.plugin.settings;_x.enabled=')
+                .replace(/ = this\.props\.plugin\.settings/g, '=_x')
 
-                if (window.powercord) { // fixes for powercord
-                    s = s.replace('devIndex + 2', 'devIndex + 6')
-                        .replace('.findModule("Sizes")', '.findModuleByDisplayName("DropdownButton")')
-                }
-
-                writeFileSync(settingsjs, s)
+            if (window.powercord) { // fixes for powercord
+                s = s.replace('devIndex + 2', 'devIndex + 6')
+                    .replace('.findModule("Sizes")', '.findModuleByDisplayName("DropdownButton")')
             }
+
+            writeFileSync(settingsjs, s)
+            this.saveData('settings_commit', settingsCommit)
         }
 
-        window.ED = { plugins: {}, version: '2.7.1' }
+        window.ED = { plugins: {}, version: '2.8' }
         window.ED.localStorage = window.localStorage
         process.env.injDir = bdConfig.dataPath
 
@@ -115,6 +124,23 @@ class EDPluginsLoader {
         }
         window.EDApi.escapeID = id => {
             return id.replace(/^[^a-z]+|[^\w-]+/gi, "")
+        }
+        window.EDApi.loadPluginSettings = pluginName => {
+            const pl = ED.plugins[pluginName]
+            if (!pl) return null
+
+            if (!ED.config[pluginName]) {
+                EDApi.savePluginSettings(pluginName, pl.defaultSettings || {enabled: !pl.disabledByDefault})
+            }
+            return ED.config[pluginName]
+        }
+        window.EDApi.savePluginSettings = (pluginName, data) => {
+            const pl = ED.plugins[pluginName]
+            if (!pl) return null
+
+            const _x = window.ED.config
+            _x[pluginName] = data
+            ED.config = _x
         }
 
         window.ED._loadPlugin = loadPlugin
@@ -259,94 +285,5 @@ function loadPlugin(plugin) {
         plugin.load();
     } catch(err) {
         c.error(`Failed to load:\n${err.stack}`, plugin);
-    }
-}
-
-// https://github.com/joe27g/EnhancedDiscord/blob/master/plugin.js
-
-/**
- * Plugin Class
- */
-class Plugin {
-    /**
-     * Create your plugin, must have a name and load() function
-     * @constructor
-     * @param {object} options - Plugin options
-     */
-    constructor (opts = {}) {
-        if (!opts.name || typeof opts.load !== 'function')
-            return 'Invalid plugin. Needs a name and a load() function.';
-
-        Object.assign(this, opts);
-        if (!this.color)
-            this.color = 'orange';
-        if (!this.author)
-            this.author = '<unknown>';
-    }
-
-    load () {}
-
-    unload () {}
-
-    reload () {
-        ED._reloadPlugin(this.id)
-    }
-
-    /**
-     * Send a decorated console.log prefixed with ED and your plugin name
-     * @param {...string} msg - Message to be logged
-     */
-    log (...msg) {
-        console.log(`%c[EnhancedDiscord] %c[${this.name}]`, 'color: red;', `color: ${this.color}`, ...msg);
-    }
-    /**
-     * Send a decorated console.info prefixed with ED and your plugin name
-     * @param {...string} msg - Message to be logged
-     */
-    info (...msg) {
-        console.info(`%c[EnhancedDiscord] %c[${this.name}]`, 'color: red;', `color: ${this.color}`, ...msg);
-    }
-    /**
-     * Send a decorated console.warn prefixed with ED and your plugin name
-     * @param {...string} msg - Message to be logged
-     */
-    warn (...msg) {
-        console.warn(`%c[EnhancedDiscord] %c[${this.name}]`, 'color: red;', `color: ${this.color}`, ...msg);
-    }
-    /**
-     * Send a decorated console.error prefixed with ED and your plugin name
-     * @param {...string} msg - Message to be logged
-     */
-    error (...msg) {
-        console.error(`%c[EnhancedDiscord] %c[${this.name}]`, 'color: red;', `color: ${this.color}`, ...msg);
-    }
-    /**
-     * Returns a Promise that resolves after ms milliseconds.
-     * @param {number} ms - How long to wait before resolving the promise
-     */
-    sleep (ms) {
-        return new Promise(resolve => {
-            setTimeout(resolve, ms);
-        });
-    }
-    get settings() {
-        //this.log('getting settings');
-        if (window.ED.config && window.ED.config[this.id])
-            return window.ED.config[this.id];
-
-        return this.defaultSettings || {enabled: !this.disabledByDefault}
-    }
-    set settings(newSets = {}) {
-        //this.log(__dirname, process.env.injDir);
-        //console.log(`setting settings for ${this.id} to`, newSets);
-        try {
-            const gay = window.ED.config;
-            gay[this.id] = newSets;
-            window.ED.config = gay;
-            //console.log(`set settings for ${this.id} to`, this.settings);
-        } catch(err) {
-            this.error(err);
-        }
-        return this.settings;
     }
 }
