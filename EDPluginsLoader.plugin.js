@@ -4,8 +4,8 @@ const { existsSync, writeFileSync, readdirSync, readFileSync } = require('fs')
 const { join } = require('path')
 const { Module } = require('module')
 
-const settingsCommit = '2da7c49264b840ba4bfcb435c722e3a79666f18d'
-const pluginCommit   = settingsCommit
+const settingsCommit = '6a43a58aaf25b0d586287ee546f19d06ea871f5f'
+const pluginCommit   = '2da7c49264b840ba4bfcb435c722e3a79666f18d'
 
 // https://raw.githubusercontent.com/joe27g/EnhancedDiscord/master/LICENSE
 
@@ -40,7 +40,7 @@ const c = {
 class EDPluginsLoader {
     getName() { return 'ED Plugins Loader' }
     getDescription() { return 'Load ED plugins in BetterDiscord' }
-    getVersion() { return '0.0.6' }
+    getVersion() { return '0.0.7' }
     getAuthor() { return 'Juby210' }
     getRawUrl() { return 'https://raw.githubusercontent.com/Juby210/EDPluginsLoader/master/EDPluginsLoader.plugin.js' }
 
@@ -73,7 +73,7 @@ ${tab}return newPlugin.load()`, 'ED._reloadPlugin(this.id)')
 
             if (window.powercord) { // fixes for powercord
                 s = s.replace('devIndex + 2', 'devIndex + 6')
-                    .replace('.findModule("Sizes")', '.findModuleByDisplayName("DropdownButton")')
+                    .replace('.findModule("Sizes")', '.findModule("DropdownSizes")')
             }
 
             writeFileSync(settingsjs, s)
@@ -249,7 +249,7 @@ ${tab}return newPlugin.load()`, 'ED._reloadPlugin(this.id)')
         }
     }
     stop() {
-        for (const id in window.ED.plugins) {
+        if (window.ED && window.ED.plugins) for (const id in window.ED.plugins) {
             if(window.ED.config[id] && window.ED.config[id].enabled == false) continue
             try {
                 window.ED.plugins[id].unload()
