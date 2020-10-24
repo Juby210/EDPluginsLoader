@@ -4,7 +4,7 @@ const { existsSync, writeFileSync, readdirSync, readFileSync } = require('fs')
 const { join } = require('path')
 const { Module } = require('module')
 
-const settingsCommit = '6a43a58aaf25b0d586287ee546f19d06ea871f5f'
+const settingsCommit = 'd038d39d5cd175f384e0006bc484b651e63baa79'
 const pluginCommit   = '2da7c49264b840ba4bfcb435c722e3a79666f18d'
 
 // https://raw.githubusercontent.com/joe27g/EnhancedDiscord/master/LICENSE
@@ -38,9 +38,9 @@ const c = {
 }
 
 class EDPluginsLoader {
-    getName() { return 'ED Plugins Loader' }
+    getName() { return 'EDPluginsLoader' }
     getDescription() { return 'Load ED plugins in BetterDiscord' }
-    getVersion() { return '0.0.7' }
+    getVersion() { return '0.0.8' }
     getAuthor() { return 'Juby210' }
     getRawUrl() { return 'https://raw.githubusercontent.com/Juby210/EDPluginsLoader/master/EDPluginsLoader.plugin.js' }
 
@@ -80,7 +80,7 @@ ${tab}return newPlugin.load()`, 'ED._reloadPlugin(this.id)')
             this.saveData('settings_commit', settingsCommit)
         }
 
-        window.ED = { plugins: {}, version: '2.8' }
+        window.ED = { plugins: {}, version: '2.8.1' }
         window.ED.localStorage = window.localStorage
         process.env.injDir = bdConfig.dataPath
 
@@ -94,7 +94,10 @@ ${tab}return newPlugin.load()`, 'ED._reloadPlugin(this.id)')
             }
         })
 
-        window.EDApi = { ...window.BdApi }
+        window.EDApi = {}
+        Object.getOwnPropertyNames(window.BdApi)
+            .filter(m => typeof window.BdApi[m] == 'function' || typeof window.BdApi[m] == 'object')
+            .forEach(m => window.EDApi[m] = window.BdApi[m])
         window.EDApi.findModule = filter => {
             if(typeof filter == 'string') return BdApi.findModuleByProps(filter)
             return BdApi.findModule(filter)
@@ -242,10 +245,6 @@ ${tab}return newPlugin.load()`, 'ED._reloadPlugin(this.id)')
 
         if (window.ZeresPluginLibrary) {
             ZeresPluginLibrary.PluginUpdater.checkForUpdate(this.getName(), this.getVersion(), this.getRawUrl())
-        } else if (window.BDFDB) {
-            if(!window.PluginUpdates) window.PluginUpdates = { plugins: {} }
-            window.PluginUpdates.plugins[this.getRawUrl()] = { name: this.getName(), raw: this.getRawUrl(), version: this.getVersion() }
-            BDFDB.PluginUtils.checkUpdate(this.getName(), this.getRawUrl())
         }
     }
     stop() {
